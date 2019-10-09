@@ -1,0 +1,101 @@
+---
+title: "nflscrapR Example"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+```{r install}
+# Must install the devtools package using the below commented out code
+install.packages("devtools")
+```
+
+## Including Plots
+
+You can also embed plots, for example:
+
+```{r devtools}
+# Then can install using the devtools package from either of the following:
+devtools::install_github(repo = "maksimhorowitz/nflscrapR")
+```
+
+```{r}
+# First load the package:
+library(nflscrapR)
+```
+
+```{r}
+# First load the package:
+library(nflscrapR)
+
+week_2_games <- scrape_game_ids(2018, weeks = 2)
+# Display using the pander package:
+install.packages("pander")
+week_2_games %>%
+  pander::pander()
+```
+
+```{r}
+library(tidyverse)
+week_5_games <- scrape_game_ids(2019, weeks = 5)
+View(week_5_games)
+week_5_games %>% pander::pander()
+min_vs_nyg_pbp <- week_5_games %>% filter(home_team == "NYG") %>% pull(game_id) %>% scrape_json_play_by_play()
+```
+
+```{r}
+# Install the awesome teamcolors package by Ben Baumer and Gregory Matthews:
+install.packages("teamcolors")
+```
+
+```{r}
+library(teamcolors)
+# Pull out the Giants and Vikings colors:
+nfl_teamcolors <- teamcolors %>% filter(league == "nfl")
+nyg_color <- nfl_teamcolors %>%
+  filter(name == "New York Giants") %>%
+  pull(primary)
+min_color <- nfl_teamcolors %>%
+  filter(name == "Minnesota Vikings") %>%
+  pull(primary)
+```
+
+```{r}
+# Now generate the win probability chart:
+min_vs_nyg_pbp %>%
+  filter(!is.na(home_wp),
+         !is.na(away_wp)) %>%
+  dplyr::select(game_seconds_remaining,
+                home_wp,
+                away_wp) %>%
+  gather(team, wpa, -game_seconds_remaining) %>%
+  ggplot(aes(x = game_seconds_remaining, y = wpa, color = team)) +
+  geom_line(size = 2) +
+  geom_hline(yintercept = 0.5, color = "gray", linetype = "dashed") +
+  scale_color_manual(labels = c("MIN", "NYG"),
+                     values = c(min_color, nyg_color),
+                     guide = FALSE) +
+  scale_x_reverse(breaks = seq(0, 3600, 300)) + 
+  annotate("text", x = 3000, y = .75, label = "MIN", color = min_color, size = 8) + 
+  annotate("text", x = 3000, y = .25, label = "NYG", color = nyg_color, size = 8) +
+  geom_vline(xintercept = 900, linetype = "dashed", black) + 
+  geom_vline(xintercept = 1800, linetype = "dashed", black) + 
+  geom_vline(xintercept = 2700, linetype = "dashed", black) + 
+  geom_vline(xintercept = 0, linetype = "dashed", black) + 
+  labs(
+    x = "Time Remaining (seconds)",
+    y = "Win Probability",
+    title = "Week 5 Win Probability Chart",
+    subtitle = "Minnesota Vikings vs. New York Giants",
+    caption = "Data from nflscrapR"
+  ) + theme_bw()
+```
+
